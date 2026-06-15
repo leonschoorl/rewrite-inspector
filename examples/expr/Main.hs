@@ -11,7 +11,7 @@
 module Main (main) where
 
 import GHC.Generics (Generic)
-import Data.Text.Prettyprint.Doc (annotate, hsep, pretty)
+import Prettyprinter (annotate, hsep, pretty)
 
 import Gen
 import BrickUI (runTerminal)

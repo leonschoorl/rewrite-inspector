@@ -2,3 +2,7 @@ clash-lib/
 clash-prelude/
 examples/clash/
 
+
+dist-newstyle/
+cabal.project.local
+.ghc.environment.*

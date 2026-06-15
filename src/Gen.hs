@@ -12,7 +12,8 @@ import GHC.Generics (Generic)
 
 import Data.Binary               (Binary, decodeFile)
 import Data.Default              (Default, def)
-import Data.Text.Prettyprint.Doc (Doc)
+import Data.Kind                 (Type)
+import Prettyprinter             (Doc)
 
 import Lens.Micro.TH (makeLenses)
 
@@ -48,11 +49,11 @@ instance Show Syntax where
 -- It requires all operations, which are necessary for our TUI to runn.
 class Eq (Ctx term) => Diff term where
   -- | The type of annotations associated to the given @term@ type.
-  type Ann     term :: *
+  type Ann     term :: Type
   -- | The type of options for the associated pretty-printer for @term@.
-  type Options term :: *
+  type Options term :: Type
   -- | The type of navigation contexts for values of type @term@.
-  type Ctx     term :: *
+  type Ctx     term :: Type
 
   -- | Read a rewrite history from a binBooary file on disk.
   readHistory :: FilePath -> IO (History term (Ctx term))

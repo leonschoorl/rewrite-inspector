@@ -15,7 +15,7 @@ module Pretty where
 import Control.Arrow             (first)
 import Data.List                 (nub, isPrefixOf, findIndices, sortOn)
 import Data.Text                 (unpack)
-import Data.Text.Prettyprint.Doc ( layoutPretty, layoutCompact
+import Prettyprinter             ( layoutPretty, layoutCompact
                                  , LayoutOptions (..)
                                  , PageWidth (..), SimpleDocStream (..) )
 
