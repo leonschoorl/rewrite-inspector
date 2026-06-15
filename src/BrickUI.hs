@@ -222,7 +222,7 @@ handleStart vs ev = do
   return (updateOcc . post <$> vs')
 
 -- | Handle keyboard events.
-handleEvent :: Diff term
+handleEvent :: forall term. Diff term
             => VizStates term
             -> BrickEvent Name NoCustomEvent
             -> EventM Name (Next (VizStates term))
@@ -255,10 +255,15 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
   = continue vs
 
   where
+    contT :: VizStates term -> EventM n (Next (VizStates term))
     contT      = continue . (scroll .~ True)
+    contF :: EventM Name a -> EventM Name (Next (VizStates term))
     contF      = (>> continue (vs & scroll .~ False))
+    bottom :: (VizState term -> VizState term)
+                      -> EventM n (Next (VizStates term))
     bottom fg  = continue $ updateState vs (fg $ getCurrentState vs)
                           & scroll .~ True
+    action :: Direction -> EventM n (Next (VizStates term))
     action dir  = case vs^.formData.com of
       Step n   -> bottom $ moveTo n
       Trans s  -> bottom $ nextTrans dir s
@@ -310,6 +315,7 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
       _        -> return ()
 
     -- form-handler
+    formHandler :: EventM Name (Next (VizStates term))
     formHandler = do
       fm' <- Bf.handleFormEvent ev (vs^.form)
       let cm          = (Bf.formState fm')^.com
