@@ -55,7 +55,7 @@ class Eq (Ctx term) => Diff term where
   -- | The type of navigation contexts for values of type @term@.
   type Ctx     term :: Type
 
-  -- | Read a rewrite history from a binBooary file on disk.
+  -- | Read a rewrite history from a binary file on disk.
   readHistory :: FilePath -> IO (History term (Ctx term))
 
   default readHistory :: (Binary term, Binary (Ctx term))
