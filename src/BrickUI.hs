@@ -15,7 +15,7 @@ import Prelude hiding (fail)
 
 import System.Environment     (getArgs)
 import Control.Applicative    ((<|>))
-import Control.Monad          (void)
+import Control.Monad          (void,when)
 import qualified Control.Monad.State    as State
 import Control.Monad.IO.Class (liftIO)
 
@@ -64,9 +64,16 @@ app attrMap = App
   { appDraw         = drawUI
   , appChooseCursor = chooseCursor
   , appHandleEvent  = handleStart
-  , appStartEvent   = lookupSize
+  , appStartEvent   = enableMouse >> lookupSize
   , appAttrMap      = const attrMap
   }
+
+enableMouse :: EventM n s ()
+enableMouse = do
+  vty <- B.getVtyHandle
+  let output = V.outputIface vty
+  when (V.supportsMode output V.Mouse) $
+      liftIO $ V.setMode output V.Mouse True
 
 -- | Choose a single cursor to display, out of possibly many requests.
 chooseCursor :: VizStates term -> [Cursor] -> Maybe Cursor
@@ -322,6 +329,12 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
       form .= Bf.setFieldValid valid (FormField "Command") fm'
 
 handleEvent _ (VtyEvent (V.EvResize _ _)) = lookupSize
+
+handleEvent _ ev@(MouseDown {}) = do
+  B.zoom form $ Bf.handleFormEvent ev
+handleEvent _ ev@(MouseUp {}) = do
+  B.zoom form $ Bf.handleFormEvent ev
+
 -- no-op event
 handleEvent _ _ = return ()
 
