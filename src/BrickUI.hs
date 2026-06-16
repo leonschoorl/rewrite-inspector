@@ -255,7 +255,7 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
       _        -> ctrlScroll
 
   | otherwise
-  = return ()
+  = B.continueWithoutRedraw
 
   where
     contT :: (VizStates term -> VizStates term) -> EventM n (VizStates term) ()
@@ -336,7 +336,7 @@ handleEvent _ ev@(MouseUp {}) = do
   B.zoom form $ Bf.handleFormEvent ev
 
 -- no-op event
-handleEvent _ _ = return ()
+handleEvent _ _ = B.continueWithoutRedraw
 
 -- * Scrolling.
 
