@@ -16,20 +16,21 @@ import Prelude hiding (fail)
 import System.Environment     (getArgs)
 import Control.Applicative    ((<|>))
 import Control.Monad          (void)
-import Control.Monad.Fail     (MonadFail (..))
+import qualified Control.Monad.State    as State
 import Control.Monad.IO.Class (liftIO)
 
 import Data.Either         (fromRight)
 import Data.List           (sortOn)
 import Data.Maybe          (listToMaybe, catMaybes)
 import Lens.Micro
+import Lens.Micro.Mtl ((.=),(%=), use)
 
 import Brick
-  ( App (..), BrickEvent (..), EventM, Next, Widget (..)
+  ( App (..), BrickEvent (..), EventM, Widget (..)
   , CursorLocation (..), cursorLocationName, cursorsL
   , VisibilityRequest (..), visibilityRequestsL
   , hSize, vSize
-  , continue, halt
+  , halt
   , str, vBox, hBox
   )
 import Brick.Focus  (focusRingCursor, focusGetCurrent)
@@ -63,7 +64,7 @@ app attrMap = App
   { appDraw         = drawUI
   , appChooseCursor = chooseCursor
   , appHandleEvent  = handleStart
-  , appStartEvent   = (lookupSize <*>) . return
+  , appStartEvent   = lookupSize
   , appAttrMap      = const attrMap
   }
 
@@ -185,16 +186,13 @@ drawUI vs =
 
 -- * Event handling.
 
--- | Allow pattern matches in EventM monadic do blocks.
-instance MonadFail (EventM Name) where
-  fail = liftIO . fail
-
 -- | Lookup terminal size and store in the current state.
-lookupSize :: EventM Name (VizStates term -> VizStates term)
+lookupSize :: EventM Name (VizStates term) ()
 lookupSize = do
   out    <- V.outputIface <$> B.getVtyHandle
   (w, h) <- liftIO (V.displayBounds out)
-  return $ (width .~ w) . (height .~ h)
+  width .= w
+  height .= h
 
 -- | Update number of occurrences of searched string in both viewports.
 updateOcc :: Diff term => VizStates term -> VizStates term
@@ -212,20 +210,20 @@ updateOcc vs
 
 -- | Lookup code sizes and store them in the current state, then handle events.
 handleStart :: forall term. Diff term
-            => VizStates term
-            -> BrickEvent Name NoCustomEvent
-            -> EventM Name (Next (VizStates term))
-handleStart vs ev = do
-  pre <- lookupSize
-  vs' <- handleEvent (pre vs) ev
-  post <- lookupSize
-  return (updateOcc . post <$> vs')
+            => BrickEvent Name NoCustomEvent
+            -> EventM Name (VizStates term) ()
+handleStart ev = do
+  lookupSize
+  vs <- State.get -- TODO remove?
+  handleEvent vs ev
+  lookupSize
+  State.modify updateOcc
 
 -- | Handle keyboard events.
 handleEvent :: forall term. Diff term
             => VizStates term
             -> BrickEvent Name NoCustomEvent
-            -> EventM Name (Next (VizStates term))
+            -> EventM Name (VizStates term) ()
 handleEvent vs ev@(VtyEvent (V.EvKey key mods))
 
   -- some controls are disabled when the user is writing in the input form
@@ -243,27 +241,27 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
   | [V.MCtrl] <- mods
   = case key of
       -- show/hide bottom pane
-      V.KChar 'p' -> continue (vs & showBot %~ not)
+      V.KChar 'p' -> showBot %= not
       -- action (forward)
       V.KChar 'b' -> action Backward
       -- change top-level binder
-      V.KChar 'l' -> contT (stepBinder vs)
-      V.KChar 'k' -> contT (unstepBinder vs)
+      V.KChar 'l' -> contT stepBinder
+      V.KChar 'k' -> contT unstepBinder
       _        -> ctrlScroll
 
   | otherwise
-  = continue vs
+  = return ()
 
   where
-    contT :: VizStates term -> EventM n (Next (VizStates term))
-    contT      = continue . (scroll .~ True)
-    contF :: EventM Name a -> EventM Name (Next (VizStates term))
-    contF      = (>> continue (vs & scroll .~ False))
+    contT :: (VizStates term -> VizStates term) -> EventM n (VizStates term) ()
+    contT upd  = scroll .= True >> State.modify upd
+    contF :: EventM Name (VizStates term) a -> EventM Name (VizStates term) ()
+    contF      = (>> (scroll .= False))
     bottom :: (VizState term -> VizState term)
-                      -> EventM n (Next (VizStates term))
-    bottom fg  = continue $ updateState vs (fg $ getCurrentState vs)
+                      -> EventM n (VizStates term) ()
+    bottom fg  = State.put $ updateState vs (fg $ getCurrentState vs)
                           & scroll .~ True
-    action :: Direction -> EventM n (Next (VizStates term))
+    action :: Direction -> EventM n (VizStates term) ()
     action dir  = case vs^.formData.com of
       Step n   -> bottom $ moveTo n
       Trans s  -> bottom $ nextTrans dir s
@@ -275,13 +273,13 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
       -- move to previous step/transformation
       V.KBS       -> action Backward
       -- change top-level binder
-      V.KRight    -> contT (stepBinder vs)
-      V.KLeft     -> contT (unstepBinder vs)
+      V.KRight    -> contT stepBinder
+      V.KLeft     -> contT unstepBinder
       _           -> always
 
     always = case key of
       -- basic controls
-      V.KEsc      -> halt vs
+      V.KEsc      -> halt
       -- change step of current binder
       V.KDown     -> bottom step
       V.KUp       -> bottom unstep
@@ -315,17 +313,18 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
       _        -> return ()
 
     -- form-handler
-    formHandler :: EventM Name (Next (VizStates term))
+    formHandler :: EventM Name (VizStates term) ()
     formHandler = do
-      fm' <- Bf.handleFormEvent ev (vs^.form)
+      B.zoom form $ Bf.handleFormEvent ev
+      fm' <- use form
       let cm          = (Bf.formState fm')^.com
           (_, tot, _) = getStep vs (vs^.curBinder)
           valid       = case cm of Step n  -> n > 0 && n <= tot
                                    _       -> True
-      continue $ vs & form .~ Bf.setFieldValid valid (FormField "Command") fm'
+      form .= Bf.setFieldValid valid (FormField "Command") fm'
 
 -- no-op event
-handleEvent vs _ = continue vs
+handleEvent _ _ = return ()
 
 -- * Scrolling.
 
@@ -338,7 +337,7 @@ l = B.viewportScroll LeftViewport
 r = B.viewportScroll RightViewport
 
 vScrollL, vScrollR, hScrollL, hScrollR, vScrollL', vScrollR', hScrollL', hScrollR',
-  vScrollHomeL, vScrollHomeR, vScrollEndL, vScrollEndR :: EventM Name ()
+  vScrollHomeL, vScrollHomeR, vScrollEndL, vScrollEndR :: EventM Name s ()
 vScrollL     = B.vScrollBy l scrollStep
 vScrollL'    = B.vScrollBy l (-scrollStep)
 vScrollR     = B.vScrollBy r scrollStep

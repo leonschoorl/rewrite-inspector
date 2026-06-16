@@ -132,28 +132,28 @@ render toScroll searchString n0 (i, xs) = B.padLeft (B.Pad i)
 -- | The default theme.
 defaultTheme :: [(String, V.Attr)] -> Bt.Theme
 defaultTheme extraAttrs = Bt.newTheme V.defAttr $
-  [ ("focus",      B.bg $ V.rgbColor 47 79 79)
-  , ("title",      V.defAttr `V.withStyle` V.bold)
-  , ("emph",       V.defAttr `V.withStyle` V.bold)
-  , ("search",     V.defAttr `V.withStyle` V.underline)
+  [ (B.attrName "focus",      B.bg $ V.rgbColor 47 79 79)
+  , (B.attrName "title",      V.defAttr `V.withStyle` V.bold)
+  , (B.attrName "emph",       V.defAttr `V.withStyle` V.bold)
+  , (B.attrName "search",     V.defAttr `V.withStyle` V.underline)
     -- forms
   , (E.editAttr,              V.white `B.on` V.black)
   , (E.editFocusedAttr,       V.black `B.on` V.yellow)
   , (Bf.invalidFormInputAttr, V.white `B.on` V.red)
   , (Bf.focusedFormInputAttr, V.black `B.on` V.yellow)
     -- syntax highlighting
-  , ("type",      V.defAttr `V.withForeColor` V.brightYellow)
-  , ("keyword",   V.defAttr `V.withForeColor` V.rgbColor 255 165 0)
-  , ("literal",   V.defAttr `V.withForeColor` V.brightCyan)
-  , ("unique",    V.defAttr `V.withStyle` V.dim)
-  , ("qualifier", V.defAttr `V.withStyle` V.italic)
+  , (B.attrName "type",      V.defAttr `V.withForeColor` V.brightYellow)
+  , (B.attrName "keyword",   V.defAttr `V.withForeColor` V.rgbColor 255 165 0)
+  , (B.attrName "literal",   V.defAttr `V.withForeColor` V.brightCyan)
+  , (B.attrName "unique",    V.defAttr `V.withStyle` V.dim)
+  , (B.attrName "qualifier", V.defAttr `V.withStyle` V.italic)
   ] ++ map (\(s, a) -> (B.attrName s, a)) extraAttrs
 
 -- | Add a list of stylistic modifications to a 'Widget'.
 modify :: Bool -> [String] -> Widget n -> Widget n
 modify toScroll = foldr (.) id . fmap mod1 . sortOn (\case "Type" -> 1; _ -> 0)
   where
-    mod1 "focus" = (if toScroll then B.visible else id) . B.withDefAttr "focus"
+    mod1 "focus" = (if toScroll then B.visible else id) . B.withDefAttr (B.attrName "focus")
     mod1 attr    = B.withDefAttr (B.attrName attr)
 
 -- | Highlight searched occurrences inside the given 'Widget'.
@@ -175,7 +175,7 @@ highlightSearch n0 s0 toS =
         (x', n') = case x of
           Left  s -> (str s, n)
           Right s -> ( ( B.showCursor (SearchResult n) (B.Location (0,0))
-                       $ B.forceAttr "search"
+                       $ B.forceAttr (B.attrName "search")
                        $ str s )
                      , n + 1 )
 
@@ -197,11 +197,11 @@ highlightSearch n0 s0 toS =
 
 -- | Styling for emphasized strings.
 emph :: String -> Widget n
-emph = B.withAttr "emph" . str
+emph = B.withAttr (B.attrName "emph") . str
 
 -- | Styling for titles.
 title :: String -> Widget n
-title = B.withAttr "title"  . str . (" " ++) . (++ " ")
+title = B.withAttr (B.attrName "title")  . str . (" " ++) . (++ " ")
 
 withBorder, withBorderSelected :: String -> Widget n -> Widget n
 -- | Render a given widget inside a box with /unicode/ border.

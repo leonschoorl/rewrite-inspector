@@ -32,14 +32,16 @@ library
                       BrickUI
     build-depends:    base          >= 4.10     && < 5,
                       binary        >= 0.8.5    && < 0.9,
-                      brick         >= 0.73     && < 1,
+                      brick         >= 1.0      && < 2.13,
                       hashable      >= 1.2.1.0  && < 1.6,
                       containers    >= 0.5.0.0  && < 0.9,
                       vty           >= 5.26,
                       prettyprinter >= 1.7.0    && < 2.0,
                       text,
                       microlens     >= 0.3.0.0,
+                      microlens-mtl,
                       microlens-th,
+                      mtl,
                       data-default  >= 0.7.1.1
 
     ghc-options:        -Wall
