@@ -213,10 +213,8 @@ handleStart :: forall term. Diff term
             => BrickEvent Name NoCustomEvent
             -> EventM Name (VizStates term) ()
 handleStart ev = do
-  lookupSize
   vs <- State.get -- TODO remove?
   handleEvent vs ev
-  lookupSize
   State.modify updateOcc
 
 -- | Handle keyboard events.
@@ -323,6 +321,7 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
                                    _       -> True
       form .= Bf.setFieldValid valid (FormField "Command") fm'
 
+handleEvent _ (VtyEvent (V.EvResize _ _)) = lookupSize
 -- no-op event
 handleEvent _ _ = return ()
 
