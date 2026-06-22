@@ -30,7 +30,7 @@ library
                       Types
                       Pretty
                       BrickUI
-    build-depends:    base          >= 4.10     && < 5,
+    build-depends:    base          >= 4.19     && < 5,
                       binary        >= 0.8.5    && < 0.9,
                       brick         >= 1.0      && < 2.13,
                       hashable      >= 1.2.1.0  && < 1.6,

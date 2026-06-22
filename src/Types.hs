@@ -94,8 +94,8 @@ data VizStates term = VizStates
   -- ^ state of each binder
   , _form      :: Form (OptionsUI term) NoCustomEvent Name
   -- ^ input form for setting parameters
-  , _showBot   :: Bool
-  -- ^ whether to hide bottom pane
+  , _showCtrls   :: Bool
+  -- ^ whether to show the controls pane
   , _width     :: Int
   -- ^ current terminal width
   , _height    :: Int
@@ -143,7 +143,7 @@ createVizStates hist = VizStates
                 $ sortOn _bndrS hist
   , _form       = mkForm @term (OptionsUI { _opts = initOptions @term
                                           , _com  = Step 1 })
-  , _showBot    = False
+  , _showCtrls  = False
   , _width      = 0
   , _height     = 0
   , _scroll     = True

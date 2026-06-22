@@ -20,7 +20,7 @@ import qualified Control.Monad.State    as State
 import Control.Monad.IO.Class (liftIO)
 
 import Data.Either         (fromRight)
-import Data.List           (sortOn)
+import Data.List           ((!?), sortOn)
 import Data.Maybe          (listToMaybe, catMaybes)
 import Lens.Micro
 import Lens.Micro.Mtl ((.=),(%=), use)
@@ -93,7 +93,7 @@ drawUI :: forall term. Diff term
        => VizStates term -> [Widget Name]
 drawUI vs =
   [ B.translateBy (B.Location controlsOffset) controls
-  | vs^.showBot
+  | vs^.showCtrls
   ]
   ++
   [ vBox
@@ -176,17 +176,18 @@ drawUI vs =
       [ "→ / ← (Ctrl-l / Ctrl-k)" .- "next/previous binder"
       , "↓ / ↑"                   .- "next/previous step"
       , "r"                       .- "reset"
-      , "Escape"                  .- "quit"
+      , "Escape / q"              .- "quit"
       , "Shift-<dir>"             .- "scroll left pane"
       , "Ctrl-<dir>"              .- "scroll right pane"
       , "PageUp/Down"             .- "scroll both panes (up/down)"
       , "Home/End"                .- "(vertically) scroll to start/end"
       , "Ins/Del"                 .- "scroll both panes (left/right)"
-      , "Ctrl-p"                  .- "show/hide keyboard controls"
+      , "Ctrl-p / h / ?"          .- "show/hide keyboard controls"
       , "(Shift-)Tab"             .- "cycle through input fields"
       , "Enter"                   .- "submit move action (forward)"
       , "KBS/Ctrl-b"              .- "submit move action (backward)"
       , "Space"                   .- "toggle flag"
+      , "1 - 9"                   .- "toggle flag 1 - 9"
       ]
       where
         button .- desc = hBox [emph button, str $ " : " ++ desc]
@@ -245,8 +246,8 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
 
   | [V.MCtrl] <- mods
   = case key of
-      -- show/hide bottom pane
-      V.KChar 'p' -> showBot %= not
+      -- show/hide controls pane
+      V.KChar 'p' -> showCtrls %= not
       -- action (forward)
       V.KChar 'b' -> action Backward
       -- change top-level binder
@@ -280,11 +281,19 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
       -- change top-level binder
       V.KRight    -> contT stepBinder
       V.KLeft     -> contT unstepBinder
+      V.KChar c | '1' <= c && c <= '9' -> toggleFlag c
       _           -> always
+
+    toggleFlag c = case flagFields @term !? n of
+      Nothing -> return ()
+      Just (g,s,_) -> (formData . opts . lens g s) %= not
+      where
+        n = read @Int [c] - 1
 
     always = case key of
       -- basic controls
       V.KEsc      -> halt
+      V.KChar 'q' -> halt
       -- change step of current binder
       V.KDown     -> bottom step
       V.KUp       -> bottom unstep
@@ -298,6 +307,10 @@ handleEvent vs ev@(VtyEvent (V.EvKey key mods))
       V.KIns      -> contF (hScrollL' >> hScrollR')
       -- move to next step/transformation
       V.KEnter    -> action Forward
+      -- show controls
+      V.KChar '?' -> showCtrls %= not
+      V.KChar 'h' -> showCtrls %= not
+
       -- dispatch to form handler
       _           -> formHandler
 
